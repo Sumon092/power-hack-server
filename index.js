@@ -4,6 +4,7 @@ const cors = require('cors');
 const port = process.env.PORT || 8000;
 require('dotenv').config();
 const bcryptjs = require('bcryptjs');
+const jwt = require("jsonwebtoken");
 
 
 const app = express();
@@ -46,9 +47,25 @@ async function run() {
                 }
                 await usersCollection.insertOne(user);
                 res.send({ status: 200, message: "User registered successfully" });
-            }
+            };
+        });
 
-        })
+        // api for user login
+        app.post("/api/login", async (req, res) => {
+            const user = await usersCollection.findOne({ email: req.body.email });
+            if (!user) {
+                return res.send({ status: 404, message: "Wrong Credential" })
+            }
+            const isCorrect = bcryptjs.compareSync(req.body.password, user.hashedPassword);
+
+            if (!isCorrect) {
+                return res.send({ status: 400, message: "Wrong Credential" })
+            }
+            const accessToken = jwt.sign({ id: user._id }, process.env.JWT, {
+                expiresIn: '1h'
+            });
+            return res.send({ status: 200, Message: "Login Successful", token: accessToken });
+        });
     }
 
     finally {
