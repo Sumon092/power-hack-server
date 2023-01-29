@@ -68,6 +68,24 @@ async function run() {
             return res.send({ status: 200, Message: "Login Successful", token: accessToken });
         });
 
+        // api for billing list
+        app.get("/api/billing-list", async (req, res) => {
+            const page = parseInt(req.query.page);
+            const size = parseInt(req.query.size);
+            let bills;
+            if (size || page) {
+                bills = await billsCollection
+                    .find()
+                    .skip(page * size)
+                    .limit(size)
+                    .toArray();
+            } else {
+                bills = await billsCollection.find().toArray();
+            }
+
+            res.send(bills);
+        });
+
         // api for add bills
         app.post("/api/add-billing", async (req, res) => {
             const bills = req.body;
@@ -84,6 +102,11 @@ async function run() {
                     message: "Internal server error"
                 });
         });
+        // api for all bills
+        app.get("/api/all-bill", async (req, res) => {
+            const allBill = await billsCollection.find().toArray();
+            res.send(allBill);
+        })
 
         //api for update billing
         app.put("/api/update-billing/:id", async (req, res) => {
