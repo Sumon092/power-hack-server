@@ -17,9 +17,22 @@ const uri = `mongodb+srv://${process.env.POWER_DB_USER}:${process.env.POWER_DB_P
 
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+function verifyJWT(req, res, next) {
+    const authorization = req.headers.authorization;
+    if (!authorization) {
+        return res.status(401).send({ message: "Not Authorized" });
+    }
+    const token = authorization.split(" ")[1];
+    jwt.verify(token, process.env.SECRET_TOKEN, function (err, decoded) {
+        if (err) {
+            return res.status(403).send({ message: "Access Forbidden" });
+        }
+        req.decoded = decoded;
+        next();
+    });
+}
 
 async function run() {
-
     try {
         client.connect();
         const usersCollection = client.db("db-power-hack").collection("users");
@@ -52,7 +65,7 @@ async function run() {
         });
 
         // api for user login
-        app.post("/api/login", async (req, res) => {
+        app.post("/api/login", verifyJWT, async (req, res) => {
             const user = await usersCollection.findOne({ email: req.body.email });
             if (!user) {
                 return res.send({ status: 404, message: "Wrong Credential" })
@@ -62,7 +75,7 @@ async function run() {
             if (!isCorrect) {
                 return res.send({ status: 400, message: "Wrong Credential" })
             }
-            const accessToken = jwt.sign({ id: user._id }, process.env.JWT, {
+            const accessToken = jwt.sign({ id: user._id }, process.env.SECRET_TOKEN, {
                 expiresIn: '1h'
             });
             return res.send({ status: 200, Message: "Login Successful", token: accessToken });
@@ -102,6 +115,15 @@ async function run() {
                     message: "Internal server error"
                 });
         });
+
+
+        //api for page count
+        app.get("/billing-listCount", async (req, res) => {
+            const count = await billsCollection.estimatedDocumentCount();
+            res.send({ count });
+        });
+
+
         // api for all bills
         app.get("/api/all-bill", async (req, res) => {
             const allBill = await billsCollection.find().toArray();
