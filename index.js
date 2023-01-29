@@ -102,6 +102,14 @@ async function run() {
                     }
                 });
         });
+
+        // api for delete a bill
+        app.delete("/api/delete-bill/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await billsCollection.deleteOne(query);
+            res.send(result);
+        })
     }
 
     finally {
