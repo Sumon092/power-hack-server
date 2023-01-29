@@ -81,6 +81,13 @@ async function run() {
             return res.send({ status: 200, Message: "Login Successful", token: accessToken });
         });
 
+        // api for get authenticated user
+        app.get("/api/users", verifyJWT, async (req, res) => {
+            const email = req.decoded;
+            const user = await usersCollection.findOne({ email });
+            res.send(user);
+        });
+
         // api for billing list
         app.get("/api/billing-list", async (req, res) => {
             const page = parseInt(req.query.page);
