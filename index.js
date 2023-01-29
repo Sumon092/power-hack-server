@@ -1,5 +1,5 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors');
 const port = process.env.PORT || 8000;
 require('dotenv').config();
@@ -82,8 +82,26 @@ async function run() {
                     status: 500,
                     success: false,
                     message: "Internal server error"
-                })
-        })
+                });
+        });
+
+        //api for update billing
+        app.put("/api/update-billing/:id", async (req, res) => {
+            const id = req.params.id;
+            const updateBill = req.body;
+            const condition = { _id: ObjectId(id) };
+            const options = { upsert: true }
+            const updateDoc = { $set: updateBill }
+            await billsCollection.updateOne(condition, updateDoc, options)
+                .then(doc => {
+                    if (!doc) {
+                        return res.status(404).end();
+                    }
+                    else {
+                        return res.status(200).json(doc)
+                    }
+                });
+        });
     }
 
     finally {
