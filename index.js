@@ -23,6 +23,7 @@ async function run() {
     try {
         client.connect();
         const usersCollection = client.db("db-power-hack").collection("users");
+        const billsCollection = client.db("db-power-hack").collection("bills");
         console.log('db connected');
 
         //api for register users
@@ -66,6 +67,23 @@ async function run() {
             });
             return res.send({ status: 200, Message: "Login Successful", token: accessToken });
         });
+
+        // api for add bills
+        app.post("/api/add-billing", async (req, res) => {
+            const bills = req.body;
+            const added = await billsCollection.insertOne(bills);
+            added.acknowledged ?
+                res.send({
+                    status: 200,
+                    success: true,
+                    message: "Bill added successfully"
+                })
+                : res.send({
+                    status: 500,
+                    success: false,
+                    message: "Internal server error"
+                })
+        })
     }
 
     finally {
