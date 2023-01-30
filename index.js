@@ -29,17 +29,19 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 function verifyJWT(req, res, next) {
     const authorization = req.headers.authorization;
     if (!authorization) {
-        return res.status(401).send({ message: 'Unauthorized access' });
+        return res.status(401).json({ message: 'Unauthorized access' });
     }
     const token = authorization.split(' ')[1];
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+    jwt.verify(token, process.env.SECRET_TOKEN, function (err, decoded) {
         if (err) {
-            return res.status(403).send({ message: 'Forbidden access' })
-        }
-        req.decoded = decoded;
-        next();
-    })
+            console.log(err)
+            return res.status(403).json({ message: 'Forbidden access' })
+        } else {
 
+            return req.decoded = decoded;
+        }
+    })
+    next();
 }
 
 
@@ -72,33 +74,39 @@ async function run() {
                 }
                 await usersCollection.insertOne(user);
                 res.send({ status: 200, message: "User registered successfully" });
-            };
+            }
+
         });
 
         // api for user login
         app.post("/api/login", async (req, res) => {
             const user = await usersCollection.findOne({ email: req.body.email });
             if (!user) {
-                return res.send({ status: 404, message: "Wrong Credential" })
+                return res.json({ status: 404, message: "Wrong Credential" })
             }
             const isCorrect = bcryptjs.compareSync(req.body.password, user.hashedPassword);
 
             if (!isCorrect) {
-                return res.send({ status: 400, message: "Wrong Credential" })
+                return res.json({ status: 400, message: "Wrong Credential" })
             }
             const accessToken = jwt.sign({ id: user._id }, process.env.SECRET_TOKEN, {
                 expiresIn: '1h'
             });
-            return res.send({ status: 200, Message: "Login Successful", token: accessToken });
+            return res.json({ status: 200, Message: "Login Successful", token: accessToken });
         });
 
         // api for get authenticated user
-        app.get("/api/users", verifyJWT, async (req, res) => {
-            const email = req.body.email;
-            const user = await usersCollection.findOne({ email });
-            res.send(user);
-            console.log(user);
-        });
+        // app.get('/users', verifyJWT, (req, res) => {
+        //     const decoded = req.decoded;
+        //     // Access user information from decoded token
+        //     const user = {
+        //         id: decoded.id,
+        //         email: decoded.email,
+        //         username: decoded.name
+        //     };
+        //     res.status(200).send({ message: 'Successful access', user });
+        // });
+
 
         // api for billing list
         app.get("/api/billing-list", async (req, res) => {
@@ -115,7 +123,7 @@ async function run() {
                 bills = await billsCollection.find().toArray();
             }
 
-            res.send(bills);
+            res.json(bills);
         });
 
         // api for add bills
@@ -123,12 +131,12 @@ async function run() {
             const bills = req.body;
             const added = await billsCollection.insertOne(bills);
             added.acknowledged ?
-                res.send({
+                res.json({
                     status: 200,
                     success: true,
                     message: "Bill added successfully"
                 })
-                : res.send({
+                : res.json({
                     status: 500,
                     success: false,
                     message: "Internal server error"
@@ -139,14 +147,14 @@ async function run() {
         //api for page count
         app.get("/billing-listCount", async (req, res) => {
             const count = await billsCollection.estimatedDocumentCount();
-            res.send({ count });
+            res.json({ count });
         });
 
 
         // api for all bills
         app.get("/api/all-bill", async (req, res) => {
             const allBill = await billsCollection.find().toArray();
-            res.send(allBill);
+            res.json(allBill);
         })
 
         //api for update billing
@@ -172,7 +180,7 @@ async function run() {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const result = await billsCollection.deleteOne(query);
-            res.send(result);
+            res.json(result);
         })
     }
 
@@ -185,7 +193,7 @@ run().catch(console.dir)
 
 
 app.get("/", (req, res) => {
-    res.send("Hello from power server")
+    res.json("Hello from power server")
 })
 app.listen(port, (req, res) => {
     console.log(`Power app listening on port ${port}`)
