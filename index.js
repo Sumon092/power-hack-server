@@ -34,6 +34,7 @@ function verifyJWT(req, res, next) {
     const token = authorization.split(" ")[1];
     jwt.verify(token, process.env.SECRET_TOKEN, function (err, decoded) {
         if (err) {
+            console.log(err)
             return res.status(403).send({ message: "Forbidden access" });
         }
         req.decoded = decoded;
@@ -62,7 +63,6 @@ async function run() {
             if (exist) {
                 res.send({ status: 401, message: "This email already exist, try another one" })
             } else {
-                console.log('register api heated')
                 const user = {
                     name,
                     email,
@@ -70,7 +70,7 @@ async function run() {
                     hashedPassword
                 }
                 await usersCollection.insertOne(user);
-                const accessToken = jwt.sign({ id: user._id }, process.env.SECRET_TOKEN, {
+                const accessToken = jwt.sign({ email: user.email }, process.env.SECRET_TOKEN, {
                     expiresIn: '1h'
                 });
                 res.send({ status: 200, message: "User registered successfully", accessToken });
@@ -78,34 +78,41 @@ async function run() {
 
         });
 
-        // api for user login
-        app.post("/api/login", verifyJWT, async (req, res) => {
-            const user = await usersCollection.findOne({ email: req.body.email });
-            if (!user) {
-                return res.json({ status: 404, message: "Wrong Credential" })
+        app.post("/api/login", async (req, res) => {
+            const email = req.body.email;
+            const password = req.body.password;
+            const isExist = await usersCollection.findOne({ email: email });
+            if (isExist) {
+                const isPasswordCorrect = bcryptjs.compareSync(
+                    password,
+                    isExist.hashedPassword
+                );
+                if (isPasswordCorrect) {
+                    const userToken = jwt.sign(email, process.env.SECRET_TOKEN);
+                    res.send({
+                        status: 200,
+                        message: "Successful LoggedIn",
+                        token: userToken,
+                    });
+                } else {
+                    res.send({ status: 401, message: "Wrong Credential" });
+                }
+            } else {
+                res.send({ status: 401, message: "Wrong Credential" });
             }
-            const isCorrect = bcryptjs.compareSync(req.body.password, user.hashedPassword);
-
-            if (!isCorrect) {
-                return res.json({ status: 400, message: "Wrong Credential" })
-            }
-            const accessToken = jwt.sign({ id: user._id }, process.env.SECRET_TOKEN, {
-                expiresIn: '1h'
-            });
-            return res.json({ status: 200, Message: "Login Successful", token: accessToken });
         });
 
         // api for get authenticated user
 
         app.get("/api/users", verifyJWT, async (req, res) => {
-            const email = req.decoded;
+            const email = req.decoded
             const user = await usersCollection.findOne({ email });
             res.json(user);
         });
 
 
         // api for billing list
-        app.get("/api/billing-list", verifyJWT, async (req, res) => {
+        app.get("/api/billing-list", async (req, res) => {
             const page = parseInt(req.query.page);
             const size = parseInt(req.query.size);
             let bills;
@@ -141,14 +148,14 @@ async function run() {
 
 
         //api for page count
-        app.get("/billing-listCount", async (req, res) => {
+        app.get("/billing-list", async (req, res) => {
             const count = await billsCollection.estimatedDocumentCount();
             res.json({ count });
         });
 
 
         // api for all bills
-        app.get("/api/all-bill", verifyJWT, async (req, res) => {
+        app.get("/api/all-bill", async (req, res) => {
             const allBill = await billsCollection.find().toArray();
             res.json(allBill);
         })
