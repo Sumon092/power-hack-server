@@ -79,7 +79,7 @@ async function run() {
         });
 
         // api for user login
-        app.post("/api/login", verifyJWT, async (req, res) => {
+        app.post("/api/login", async (req, res) => {
             const user = await usersCollection.findOne({ email: req.body.email });
             if (!user) {
                 return res.json({ status: 404, message: "Wrong Credential" })
@@ -105,7 +105,7 @@ async function run() {
 
 
         // api for billing list
-        app.get("/api/billing-list", verifyJWT, async (req, res) => {
+        app.get("/api/billing-list", async (req, res) => {
             const page = parseInt(req.query.page);
             const size = parseInt(req.query.size);
             let bills;
@@ -123,7 +123,7 @@ async function run() {
         });
 
         // api for add bills
-        app.post("/api/add-billing", verifyJWT, async (req, res) => {
+        app.post("/api/add-billing", async (req, res) => {
             const bills = req.body;
             const added = await billsCollection.insertOne(bills);
             added.acknowledged ?
@@ -148,13 +148,13 @@ async function run() {
 
 
         // api for all bills
-        app.get("/api/all-bill", verifyJWT, async (req, res) => {
+        app.get("/api/all-bill", async (req, res) => {
             const allBill = await billsCollection.find().toArray();
             res.json(allBill);
         })
 
         //api for update billing
-        app.put("/api/update-billing/:id", verifyJWT, async (req, res) => {
+        app.put("/api/update-billing/:id", async (req, res) => {
             const id = req.params.id;
             const updateBill = req.body;
             const condition = { _id: ObjectId(id) };
@@ -172,7 +172,7 @@ async function run() {
         });
 
         // api for delete a bill
-        app.delete("/api/delete-bill/:id", verifyJWT, async (req, res) => {
+        app.delete("/api/delete-bill/:id", async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const result = await billsCollection.deleteOne(query);
