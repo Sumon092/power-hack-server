@@ -29,19 +29,16 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 function verifyJWT(req, res, next) {
     const authorization = req.headers.authorization;
     if (!authorization) {
-        return res.status(401).json({ message: 'Unauthorized access' });
+        return res.status(401).send({ message: "UnAuthorized" });
     }
-    const token = authorization.split(' ')[1];
+    const token = authorization.split(" ")[1];
     jwt.verify(token, process.env.SECRET_TOKEN, function (err, decoded) {
         if (err) {
-            console.log(err)
-            return res.status(403).json({ message: 'Forbidden access' })
-        } else {
-
-            return req.decoded = decoded;
+            return res.status(403).send({ message: "Forbidden access" });
         }
-    })
-    next();
+        req.decoded = decoded;
+        next();
+    });
 }
 
 
@@ -73,13 +70,16 @@ async function run() {
                     hashedPassword
                 }
                 await usersCollection.insertOne(user);
-                res.send({ status: 200, message: "User registered successfully" });
+                const accessToken = jwt.sign({ id: user._id }, process.env.SECRET_TOKEN, {
+                    expiresIn: '1h'
+                });
+                res.send({ status: 200, message: "User registered successfully", accessToken });
             }
 
         });
 
         // api for user login
-        app.post("/api/login", async (req, res) => {
+        app.post("/api/login", verifyJWT, async (req, res) => {
             const user = await usersCollection.findOne({ email: req.body.email });
             if (!user) {
                 return res.json({ status: 404, message: "Wrong Credential" })
@@ -97,18 +97,15 @@ async function run() {
 
         // api for get authenticated user
 
-        app.get('/users', verifyJWT, (req, res) => {
-            const decoded = req.decoded;
-            // Access user information from decoded token
-            const user = {
-                email: decoded.email,
-            };
-            res.status(200).send({ message: 'Successful access', user });
+        app.get("/api/users", verifyJWT, async (req, res) => {
+            const email = req.decoded;
+            const user = await usersCollection.findOne({ email });
+            res.json(user);
         });
 
 
         // api for billing list
-        app.get("/api/billing-list", async (req, res) => {
+        app.get("/api/billing-list", verifyJWT, async (req, res) => {
             const page = parseInt(req.query.page);
             const size = parseInt(req.query.size);
             let bills;
@@ -126,7 +123,7 @@ async function run() {
         });
 
         // api for add bills
-        app.post("/api/add-billing", async (req, res) => {
+        app.post("/api/add-billing", verifyJWT, async (req, res) => {
             const bills = req.body;
             const added = await billsCollection.insertOne(bills);
             added.acknowledged ?
@@ -151,13 +148,13 @@ async function run() {
 
 
         // api for all bills
-        app.get("/api/all-bill", async (req, res) => {
+        app.get("/api/all-bill", verifyJWT, async (req, res) => {
             const allBill = await billsCollection.find().toArray();
             res.json(allBill);
         })
 
         //api for update billing
-        app.put("/api/update-billing/:id", async (req, res) => {
+        app.put("/api/update-billing/:id", verifyJWT, async (req, res) => {
             const id = req.params.id;
             const updateBill = req.body;
             const condition = { _id: ObjectId(id) };
@@ -175,7 +172,7 @@ async function run() {
         });
 
         // api for delete a bill
-        app.delete("/api/delete-bill/:id", async (req, res) => {
+        app.delete("/api/delete-bill/:id", verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const result = await billsCollection.deleteOne(query);
