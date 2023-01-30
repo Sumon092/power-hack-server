@@ -96,16 +96,15 @@ async function run() {
         });
 
         // api for get authenticated user
-        // app.get('/users', verifyJWT, (req, res) => {
-        //     const decoded = req.decoded;
-        //     // Access user information from decoded token
-        //     const user = {
-        //         id: decoded.id,
-        //         email: decoded.email,
-        //         username: decoded.name
-        //     };
-        //     res.status(200).send({ message: 'Successful access', user });
-        // });
+
+        app.get('/users', verifyJWT, (req, res) => {
+            const decoded = req.decoded;
+            // Access user information from decoded token
+            const user = {
+                email: decoded.email,
+            };
+            res.status(200).send({ message: 'Successful access', user });
+        });
 
 
         // api for billing list
