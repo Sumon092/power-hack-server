@@ -6,11 +6,20 @@ require('dotenv').config();
 const bcryptjs = require('bcryptjs');
 const jwt = require("jsonwebtoken");
 
-
 const app = express();
-
-app.use(cors())
-app.use(express.json());
+const corsConfig = {
+    origin: '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE']
+}
+app.use(cors(corsConfig))
+app.options("*", cors(corsConfig))
+app.use(express.json())
+app.use(function (req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*")
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept,authorization")
+    next()
+})
 
 
 const uri = `mongodb+srv://${process.env.POWER_DB_USER}:${process.env.POWER_DB_PASS}@cluster0.ys0dmn7.mongodb.net/?retryWrites=true&w=majority`;
@@ -20,17 +29,19 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 function verifyJWT(req, res, next) {
     const authorization = req.headers.authorization;
     if (!authorization) {
-        return res.status(401).send({ message: "Not Authorized" });
+        return res.status(401).send({ message: 'Unauthorized access' });
     }
-    const token = authorization.split(" ")[1];
-    jwt.verify(token, process.env.SECRET_TOKEN, function (err, decoded) {
+    const token = authorization.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
         if (err) {
-            return res.status(403).send({ message: "Access Forbidden" });
+            return res.status(403).send({ message: 'Forbidden access' })
         }
         req.decoded = decoded;
         next();
-    });
+    })
+
 }
+
 
 async function run() {
     try {
@@ -65,7 +76,7 @@ async function run() {
         });
 
         // api for user login
-        app.post("/api/login", verifyJWT, async (req, res) => {
+        app.post("/api/login", async (req, res) => {
             const user = await usersCollection.findOne({ email: req.body.email });
             if (!user) {
                 return res.send({ status: 404, message: "Wrong Credential" })
@@ -83,9 +94,10 @@ async function run() {
 
         // api for get authenticated user
         app.get("/api/users", verifyJWT, async (req, res) => {
-            const email = req.decoded;
+            const email = req.body.email;
             const user = await usersCollection.findOne({ email });
             res.send(user);
+            console.log(user);
         });
 
         // api for billing list
